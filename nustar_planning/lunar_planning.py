@@ -250,17 +250,19 @@ def position_shift(orbits, outfile=None,load_path=None, show=False,
 
             if last_point is not None:
                 
-            
-            
                 dshift = this_point.separation(last_point)
                 dwell = point_time - last_time
 
+                # Aim halfway between the two positions
+                aim_time = 0.5*dwell + last_time
+
+                # Below was for diagnostic testing and is *wrong*. Use the 50%
+                # location above to aim the damn satellite. This was used for the lunar
+                # eclipse test.
+                # aim_time = point_time
 
                 if (dshift.arcsec > min_shift.to(u.arcsec).value) & (dwell.seconds > min_dwell.to(u.s).value):
                     
-                    # Aim halfway between the two positions
-                    aim_time = 0.5*(point_time - last_time) + last_time
-                    aim_time = point_time
                     if diag is True:
                         print('Start of dwell: '+last_time.isoformat())
                         print('End of dwell: '+point_time.isoformat())
@@ -268,27 +270,30 @@ def position_shift(orbits, outfile=None,load_path=None, show=False,
                         print('Time used to aim: '+aim_time.isoformat())
                         print('Dwell Duration (sec): {:.2f} \n  Dwell Drift (arcmin): {:.2f}'.format(dwell.seconds, dshift.arcmin))
                         print('')
+
+                    # Below is where we correctly compute the aim location for the
+                    # aim_time
+                    astro_time = Time(aim_time)
+                    t = ts.from_astropy(astro_time)
                     astrometric_aim = observer.at(t).observe(moon)
                     ra_aim, dec_aim, distance = astrometric.radec()
-     
                     
                     dec_point = dec_aim.to(u.deg) + Rmoon.to(u.deg) * np.cos(pa)
                     ra_point = ra_aim.to(u.deg) + Rmoon.to(u.deg) * np.sin(pa) / np.cos(dec_aim.to(u.deg))
-     
-     
-                                       
+                        
+                        
+                    # We report the "last_time" instead of the "aim time" below because
+                    # this is when we want the spacecraft to arrive at the new position.
                     if show is True:
                         print(last_time.strftime('%Y:%j:%H:%M:%S')+' RA: {:.5f}  Dec: {:.5f}'.format(ra_point.value, dec_point.value))
                         print('')
-
-
+                        
                     if outfile is not None:
                         f.write(last_time.strftime('%Y:%j:%H:%M:%S')+' {:.5f}  {:.5f}'.format(ra_point.value, dec_point.value)+'\n')
 
                     # Copy over for next dwell computation
                     last_time = point_time
                     last_point = this_point
-
                     
             else:
                 
